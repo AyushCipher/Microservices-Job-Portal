@@ -13,6 +13,8 @@ const JOB_LIST_CACHE_PREFIX = "cache:job:all:";
 const JOB_SINGLE_CACHE_PREFIX = "cache:job:single:";
 const COMPANY_CACHE_PREFIX = "cache:job:company:";
 
+
+// This function handles the creation of a new company by a recruiter
 export const createCompany = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const user = req.user;
@@ -22,10 +24,7 @@ export const createCompany = TryCatch(
     }
 
     if (user.role !== "recruiter") {
-      throw new ErrorHandler(
-        403,
-        "Forbidden: Only recruiter can create a company"
-      );
+      throw new ErrorHandler(403,"Forbidden: Only recruiter can create a company");
     }
 
     const { name, description, website } = req.body;
@@ -38,24 +37,24 @@ export const createCompany = TryCatch(
       await sql`SELECT company_id FROM companies WHERE name = ${name}`;
 
     if (existingCompanies.length > 0) {
-      throw new ErrorHandler(
-        409,
-        `A company with the name ${name} already exists`
-      );
+      throw new ErrorHandler(409, `A company with the name ${name} already exists`);
     }
 
+    // Converts the file(logo -> from Multer) into the format expected by the Utils Service
     const file = req.file;
 
     if (!file) {
       throw new ErrorHandler(400, "Company logo file is required");
     }
 
+    // The getBuffer function takes the file object (which contains the raw binary data of the uploaded file) and converts it into a Data URI format
     const fileBuffer = getBuffer(file);
 
     if (!fileBuffer || !fileBuffer.content) {
       throw new ErrorHandler(500, "Failed to create file buffer");
     }
 
+    // Job service sends the file buffer to the Utils service for uploading to cloud storage (like AWS S3 or Cloudinary). The Utils service returns a URL and public ID for the uploaded file, which is then stored in the database.
     const { data } = await axios.post(
       `${process.env.UPLOAD_SERVICE}/api/utils/upload`,
       { buffer: fileBuffer.content }
@@ -71,6 +70,8 @@ export const createCompany = TryCatch(
   }
 );
 
+
+// This function handles the deletion of a company and all associated jobs
 export const deleteCompany = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const user = req.user;
@@ -85,10 +86,7 @@ export const deleteCompany = TryCatch(
     }
 
     if (company.recruiter_id !== user?.user_id && user?.role !== "admin") {
-      throw new ErrorHandler(
-        403,
-        "You're not authorized to delete this company"
-      );
+      throw new ErrorHandler(403,"You're not authorized to delete this company");
     }
 
     await sql`DELETE FROM companies WHERE company_id = ${companyId}`;
@@ -110,6 +108,8 @@ interface JobRoundInput {
   description?: string;
 }
 
+
+// This function handles the creation of a new job by a recruiter
 export const createJob = TryCatch(async (req: AuthenticatedRequest, res) => {
   const user = req.user;
 
@@ -118,10 +118,7 @@ export const createJob = TryCatch(async (req: AuthenticatedRequest, res) => {
   }
 
   if (user.role !== "recruiter") {
-    throw new ErrorHandler(
-      403,
-      "Forbidden: Only recruiter can create a company"
-    );
+    throw new ErrorHandler(403,"Forbidden: Only recruiter can create a company");
   }
 
   const {
@@ -196,14 +193,17 @@ export const createJob = TryCatch(async (req: AuthenticatedRequest, res) => {
       (round, index) =>
         sql`INSERT INTO job_rounds (job_id, round_order, name, description) VALUES (${newJob.job_id}, ${index + 1}, ${round.name}, ${round.description ?? null})`
     );
+
     const tagInserts = (tags as string[]).map(
       (tag) =>
         sql`INSERT INTO job_tags (job_id, tag) VALUES (${newJob.job_id}, ${tag})`
     );
+
     const skillInserts = (skills as string[]).map(
       (skill) =>
         sql`INSERT INTO job_skills (job_id, skill) VALUES (${newJob.job_id}, ${skill})`
     );
+
     const questionInserts = (questions as string[]).map(
       (question, index) =>
         sql`INSERT INTO job_questions (job_id, question_order, question_text) VALUES (${newJob.job_id}, ${index + 1}, ${question})`
@@ -216,13 +216,11 @@ export const createJob = TryCatch(async (req: AuthenticatedRequest, res) => {
       ...skillInserts,
       ...questionInserts,
     ] as any);
+
   } catch (error) {
     console.error("Failed to save job details, rolling back job row", error);
     await sql`DELETE FROM jobs WHERE job_id = ${newJob.job_id}`;
-    throw new ErrorHandler(
-      500,
-      "Failed to save job details, please try again"
-    );
+    throw new ErrorHandler(500,"Failed to save job details, please try again");
   }
 
   await Promise.all([
@@ -236,6 +234,8 @@ export const createJob = TryCatch(async (req: AuthenticatedRequest, res) => {
   });
 });
 
+
+// This function handles the updating of an existing job by a recruiter
 export const updateJob = TryCatch(async (req: AuthenticatedRequest, res) => {
   const user = req.user;
 
@@ -244,10 +244,7 @@ export const updateJob = TryCatch(async (req: AuthenticatedRequest, res) => {
   }
 
   if (user.role !== "recruiter" && user.role !== "admin") {
-    throw new ErrorHandler(
-      403,
-      "Forbidden: Only recruiter can create a company"
-    );
+    throw new ErrorHandler(403,"Forbidden: Only recruiter can create a company");
   }
 
   const {
@@ -314,13 +311,16 @@ export const updateJob = TryCatch(async (req: AuthenticatedRequest, res) => {
     (round, index) =>
       sql`INSERT INTO job_rounds (job_id, round_order, name, description) VALUES (${jobId}, ${index + 1}, ${round.name}, ${round.description ?? null})`
   );
+
   const tagInserts = (tags as string[]).map(
     (tag) => sql`INSERT INTO job_tags (job_id, tag) VALUES (${jobId}, ${tag})`
   );
+
   const skillInserts = (skills as string[]).map(
     (skill) =>
       sql`INSERT INTO job_skills (job_id, skill) VALUES (${jobId}, ${skill})`
   );
+
   const questionInserts = (questions as string[]).map(
     (question, index) =>
       sql`INSERT INTO job_questions (job_id, question_order, question_text) VALUES (${jobId}, ${index + 1}, ${question})`
@@ -393,6 +393,8 @@ export const updateJob = TryCatch(async (req: AuthenticatedRequest, res) => {
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10MB
 
+
+// This function handles the uploading of an attachment (PDF) for a specific job by a recruiter
 export const uploadJobAttachment = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const user = req.user;
@@ -414,6 +416,7 @@ export const uploadJobAttachment = TryCatch(
       throw new ErrorHandler(403, "You do not have permission to perform this action");
     }
 
+    // The file is expected to be sent in the request body as a multipart/form-data payload, typically using a form submission or an API client that supports file uploads.
     const file = req.file;
 
     if (!file) {
@@ -428,6 +431,7 @@ export const uploadJobAttachment = TryCatch(
       throw new ErrorHandler(400, "File must be 10MB or smaller");
     }
 
+    // The getBuffer function takes the file object (which contains the raw binary data of the uploaded file) and converts it into a Data URI format
     const fileBuffer = getBuffer(file);
 
     if (!fileBuffer || !fileBuffer.content) {
@@ -454,6 +458,8 @@ export const uploadJobAttachment = TryCatch(
   }
 );
 
+
+// This function fetch all companies created by the logged-in recruiter
 export const getAllCompany = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const companies =
@@ -463,6 +469,8 @@ export const getAllCompany = TryCatch(
   }
 );
 
+
+// This function fetches the details of a specific company by its ID, including all jobs associated with that company
 export const getCompanyDetails = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const { id } = req.params;
@@ -497,6 +505,8 @@ export const getCompanyDetails = TryCatch(
   }
 );
 
+
+// This function fetches all active jobs, with optional filtering by title and location, and supports pagination
 export const getAllActiveJobs = TryCatch(async (req, res) => {
   const { title, location, page, limit } = res.locals.validated.query as {
     title?: string;
@@ -513,8 +523,11 @@ export const getAllActiveJobs = TryCatch(async (req, res) => {
     return res.json(cached);
   }
 
+  // Dynamic SQL Query Construction (Preventing Injection): It explicitly limits results to listings where is_active = true and performs an inner JOIN on the companies table 
+  // using the alias c to map details like the corporate logo alongside the listing text
   let whereClause = ` FROM jobs j JOIN companies c ON j.company_id = c.company_id WHERE j.is_active = true`;
 
+  // The values array is used to store the parameters for the SQL query, which will be substituted into the query string at the appropriate placeholders ($1, $2, etc.) to prevent SQL injection attacks
   const values: any[] = [];
 
   let paramIndex = 1;
@@ -531,15 +544,18 @@ export const getAllActiveJobs = TryCatch(async (req, res) => {
     paramIndex++;
   }
 
+  // Total Record Counting
   const countQuery = `SELECT COUNT(*)::int AS total${whereClause}`;
   const [{ total }] = (await sql.query(countQuery, values)) as {
     total: number;
   }[];
 
+  // Fetching Paginated Data Rows:  Avoids using * macros. It explicitly names only the structural card metadata needed for search tiles to optimize downstream execution speeds
   const dataQuery = `SELECT j.job_id, j.title, j.description, j.salary, j.location, j.job_type, j.role, j.work_location, j.created_at, c.name AS company_name, c.logo AS company_logo, c.company_id AS company_id${whereClause} ORDER BY j.created_at DESC LIMIT $${paramIndex} OFFSET $${
     paramIndex + 1
   }`;
 
+  // Executes the final page lookup query
   const jobs = (await sql.query(dataQuery, [
     ...values,
     limit,
@@ -561,6 +577,8 @@ export const getAllActiveJobs = TryCatch(async (req, res) => {
   res.json(result);
 });
 
+
+// This function fetches the details of a specific job by its ID, including associated company information, rounds, tags, skills, questions, attachments, and the count of applicants
 export const getSingleJob = TryCatch(async (req, res) => {
   const cacheKey = `${JOB_SINGLE_CACHE_PREFIX}${req.params.jobId}`;
 
@@ -593,6 +611,8 @@ export const getSingleJob = TryCatch(async (req, res) => {
     throw new ErrorHandler(404, "Job not found");
   }
 
+  // Parallelized Microservice Querying: Instead of using await on 6 separate lines—which would force our server to wait for Query 1 to completely finish before starting Query 2 (creating a slow network bottleneck),
+  // the code leverages Promise.all to launch all 6 relational lookup requests at the exact same millisecond.
   const [rounds, tags, skills, questions, attachments, applicantCountRows] =
     await Promise.all([
       sql`SELECT round_id, round_order, name, description FROM job_rounds WHERE job_id = ${jobId} ORDER BY round_order ASC`,
@@ -615,6 +635,8 @@ export const getSingleJob = TryCatch(async (req, res) => {
   res.json(job);
 });
 
+
+// This function fetches all applications for a specific job, including applicant details and their answers to the recruiter's questions
 export const getAllApplicationForJob = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const user = req.user;
@@ -646,10 +668,12 @@ export const getAllApplicationForJob = TryCatch(
       limit: number;
     };
 
+    // Total Record Counting
     const [{ total }] = (await sql`
       SELECT COUNT(*)::int AS total FROM applications WHERE job_id = ${jobId}
     `) as { total: number }[];
 
+    // Calculates the absolute total number of applications submitted for this job opening
     const applications = await sql`
       SELECT a.*, u.name AS applicant_name, u.profile_pic AS applicant_profile_pic
       FROM applications a
@@ -660,13 +684,13 @@ export const getAllApplicationForJob = TryCatch(
     `;
 
     // Attach each applicant's answers to the recruiter's own questions.
-    // Applications made before the questions feature shipped simply carry an
-    // empty array.
+    // Applications made before the questions feature shipped simply carry an empty array.
     if (applications.length > 0) {
       const applicationIds = applications.map(
         (a: any) => a.application_id
       ) as number[];
 
+      // Fetches all answers for the applications in a single query, joining with job_questions to get the question text and order
       const answers = (await sql`
         SELECT aa.application_id, aa.question_id, aa.answer_text,
                jq.question_text, jq.question_order
@@ -676,6 +700,7 @@ export const getAllApplicationForJob = TryCatch(
         ORDER BY jq.question_order ASC
       `) as any[];
 
+      // Creates an in-memory Hash Map indexed by application_id. It loops through the flat database array of answers and groups them together cleanly by their application ID inside memory
       const byApplication = new Map<number, any[]>();
       for (const answer of answers) {
         const list = byApplication.get(answer.application_id) ?? [];
@@ -683,6 +708,8 @@ export const getAllApplicationForJob = TryCatch(
         byApplication.set(answer.application_id, list);
       }
 
+      // It loops over the main list of 10 candidates, matches their .application_id instantly against our in-memory map, and attaches a custom .answers array directly to each candidate row. 
+      // If a candidate applied before the screening questions feature launched, it gracefully attaches an empty fallback array[]
       for (const application of applications as any[]) {
         application.answers =
           byApplication.get(application.application_id) ?? [];
@@ -701,12 +728,15 @@ export const getAllApplicationForJob = TryCatch(
   }
 );
 
+
+// This function fetches all jobs in the system for admin users, with pagination support
 export const adminListAllJobs = TryCatch(async (req, res) => {
   const { page, limit } = res.locals.validated.query as {
     page: number;
     limit: number;
   };
 
+  // Total Record Counting
   const [{ total }] = (await sql`
     SELECT COUNT(*)::int AS total FROM jobs
   `) as { total: number }[];
@@ -729,16 +759,20 @@ export const adminListAllJobs = TryCatch(async (req, res) => {
   });
 });
 
+
+// This function fetches all companies in the system for admin users, with pagination support
 export const adminListAllCompanies = TryCatch(async (req, res) => {
   const { page, limit } = res.locals.validated.query as {
     page: number;
     limit: number;
   };
 
+  // Total Record Counting
   const [{ total }] = (await sql`
     SELECT COUNT(*)::int AS total FROM companies
   `) as { total: number }[];
 
+  // Fetching Profiles & Aggregating Metrics
   const companies = await sql`
     SELECT company_id, name, description, website, logo, recruiter_id, created_at,
       (SELECT COUNT(*)::int FROM jobs j WHERE j.company_id = c.company_id) AS job_count
@@ -758,6 +792,8 @@ export const adminListAllCompanies = TryCatch(async (req, res) => {
   });
 });
 
+
+// This function allows an admin user to set the active status of a job, enabling or disabling its visibility to applicants
 export const adminSetJobActive = TryCatch(async (req, res) => {
   const { jobId } = req.params;
   const { is_active } = req.body;
@@ -778,6 +814,9 @@ export const adminSetJobActive = TryCatch(async (req, res) => {
   res.json({ message: "Job moderation status updated", job });
 });
 
+
+// This function allows a recruiter or admin to update the status of an application, such as marking it as accepted, rejected, or in progress. 
+// It also sends an email notification to the applicant about the status change.
 export const updateApplication = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const user = req.user;
@@ -831,13 +870,14 @@ export const updateApplication = TryCatch(
   }
 );
 
-// Shared by getApplicationSummary and getApplicationHistory (and reused by
-// the gateway's socket-join check once the WebSocket phase lands) so the
+// Shared by getApplicationSummary and getApplicationHistory (and reused by the gateway's socket-join check once the WebSocket phase lands) so the
 // "who's allowed to see this application" rule only lives in one place.
-async function resolveApplicationAccess(
-  applicationId: string,
-  user: { user_id: number; role: string }
-) {
+
+// Its job is to check if a logged-in user has the legal right to view or modify a specific job application before your server processes any changes.
+// Instead of copy-pasting the same security checks across multiple files (like viewApplication, updateStatus, or deleteApplication), developers create a helper function like resolveApplicationAccess to centralized authorization logic
+async function resolveApplicationAccess(applicationId: string, user: { user_id: number; role: string }) {
+
+  // Fetching the Relationship Blueprint: Performs join between applications and jobs to get the applicant_id(jobseeker who submitted the application) and posted_by_recuriter_id(who posted the job listing) for the given applicationId
   const [application] = await sql`
     SELECT a.application_id, a.job_id, a.applicant_id, j.posted_by_recuriter_id
     FROM applications a
@@ -849,6 +889,7 @@ async function resolveApplicationAccess(
     throw new ErrorHandler(404, "Application not found");
   }
 
+  // Evaluating Access Permissions: Only person who submitted the application, the recruiter who posted the job, or an admin can access it
   const isOwner =
     application.applicant_id === user.user_id ||
     application.posted_by_recuriter_id === user.user_id ||
@@ -861,6 +902,8 @@ async function resolveApplicationAccess(
   return application;
 }
 
+
+// This function fetches a summary of a specific application, including its ID, associated job ID, and applicant ID
 export const getApplicationSummary = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     if (!req.user) {
@@ -880,6 +923,8 @@ export const getApplicationSummary = TryCatch(
   }
 );
 
+
+// This function fetches the history of a specific application, including the stages it has gone through, their statuses, and any notes associated with each stage
 export const getApplicationHistory = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     if (!req.user) {
@@ -887,10 +932,11 @@ export const getApplicationHistory = TryCatch(
     }
 
     const application = await resolveApplicationAccess(
-      req.params.id as string,
-      req.user
+      req.params.id as string,      // Application ID from the request parameters
+      req.user                      // Logged-in user object from the request
     );
 
+    // Running the Chronological History Query
     const history = await sql`
       SELECT history_id, round_id, stage_name, status, note, changed_at
       FROM application_stage_history
@@ -902,6 +948,9 @@ export const getApplicationHistory = TryCatch(
   }
 );
 
+
+// This function allows a recruiter or admin to update the stage of one or more applications, including the round, status, and optional note. 
+// It also handles updating the overall application status if the final round is completed or rejected.
 export const updateApplicationStage = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const user = req.user;
@@ -948,10 +997,7 @@ export const updateApplicationStage = TryCatch(
     `;
 
     if (applications.length === 0) {
-      throw new ErrorHandler(
-        404,
-        "No matching applications found for this job"
-      );
+      throw new ErrorHandler(404,"No matching applications found for this job");
     }
 
     // A round being "completed" only means the whole application is Hired

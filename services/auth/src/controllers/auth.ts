@@ -20,6 +20,7 @@ import { forgotPasswordTemplate } from "../templete.js";
 import { publishToTopic } from "../producer.js";
 import { redisClient } from "../utils/redisClient.js";
 
+
 const issueTokenPair = async (user: { user_id: number; role: string }) => {
   const secret = process.env.JWT_SEC as string;
   const subject = { id: user.user_id, role: user.role };
@@ -31,6 +32,7 @@ const issueTokenPair = async (user: { user_id: number; role: string }) => {
 
   return { accessToken, refreshToken };
 };
+
 
 export const registerUser = TryCatch(async (req, res, next) => {
   const { name, email, password, phoneNumber, role, bio } = req.body;
@@ -44,7 +46,7 @@ export const registerUser = TryCatch(async (req, res, next) => {
 
   const hashPassword = await bcrypt.hash(password, 10);
 
-  let registeredUser;
+  let registeredUser;       // let because there are two possible registration branches:- recruiter and jobseeker
 
   if (role === "recruiter") {
     const [user] =
@@ -69,6 +71,7 @@ export const registerUser = TryCatch(async (req, res, next) => {
       `${process.env.UPLOAD_SERVICE}/api/utils/upload`,
       { buffer: fileBuffer.content }
     );
+
     const [user] =
       await sql`INSERT INTO users (name, email, password, phone_number, role, bio, resume, resume_public_id) VALUES
                (${name}, ${email}, ${hashPassword}, ${phoneNumber}, ${role}, ${bio}, ${data.url}, ${data.public_id}) RETURNING user_id, name, email, phone_number, role, bio, resume, created_at`;
@@ -91,12 +94,13 @@ export const registerUser = TryCatch(async (req, res, next) => {
   });
 });
 
+
 export const loginUser = TryCatch(async (req, res, next) => {
   const { email, password } = req.body;
 
   const user = await sql`
   SELECT u.user_id, u.name, u.email, u.password, u.phone_number, u.role, u.bio, u.resume, u.profile_pic, u.subscription, ARRAY_AGG(s.name) FILTER (WHERE s.name IS NOT NULL) as skills FROM users u LEFT JOIN user_skills us ON u.user_id = us.user_id
-  LEFT JOIN skills s ON us.skill_id = s.skill_id
+  LEFT JOIN skills s ON us.skill_id = s.skill_id   
   WHERE u.email = ${email} GROUP BY u.user_id;
   `;
 
@@ -129,12 +133,13 @@ export const loginUser = TryCatch(async (req, res, next) => {
   });
 });
 
+
 export const refreshAccessToken = TryCatch(async (req, res, next) => {
   const { refreshToken } = req.body;
 
   const secret = process.env.JWT_SEC as string;
 
-  let decoded: RefreshTokenPayload;
+  let decoded: RefreshTokenPayload;   // Eventually decoded will contain a refresh-token payload
 
   try {
     decoded = verifyToken<RefreshTokenPayload>(refreshToken, secret);
@@ -167,6 +172,7 @@ export const refreshAccessToken = TryCatch(async (req, res, next) => {
   });
 });
 
+
 export const logoutUser = TryCatch(async (req, res, next) => {
   const { refreshToken } = req.body;
   const secret = process.env.JWT_SEC as string;
@@ -184,6 +190,7 @@ export const logoutUser = TryCatch(async (req, res, next) => {
     // Refresh token already invalid/expired — nothing to revoke, proceed.
   }
 
+  // Get Authorization header
   const authHeader = req.headers.authorization;
 
   if (authHeader?.startsWith("Bearer ")) {
@@ -207,6 +214,7 @@ export const logoutUser = TryCatch(async (req, res, next) => {
   res.json({ message: "Logged out successfully" });
 });
 
+
 export const forgotPassword = TryCatch(async (req, res, next) => {
   const { email } = req.body;
 
@@ -220,6 +228,7 @@ export const forgotPassword = TryCatch(async (req, res, next) => {
   }
   const user = users[0];
 
+  // creating a JWT specifically for password reset
   const resetToken = jwt.sign(
     {
       email: user.email,
@@ -231,6 +240,7 @@ export const forgotPassword = TryCatch(async (req, res, next) => {
 
   const resetLink = `${process.env.Frontend_Url}/reset/${resetToken}`;
 
+  // Store reset token in Redis
   await redisClient.set(`forgot:${email}`, resetToken, {
     EX: 900,
   });
@@ -241,14 +251,16 @@ export const forgotPassword = TryCatch(async (req, res, next) => {
     html: forgotPasswordTemplate(resetLink),
   };
 
+  // Sends the email request asynchronously through Kafka
   publishToTopic("send-mail", message).catch((error) => {
-    console.error("failed to send message", error);
+    console.error("Failed to send message", error);
   });
 
   res.json({
     message: "If that email exists, we have sent a reset link",
   });
 });
+
 
 export const resetPassword = TryCatch(async (req, res, next) => {
   const { token } = req.params;
@@ -268,9 +280,12 @@ export const resetPassword = TryCatch(async (req, res, next) => {
 
   const email = decoded.email;
 
-  const stroredToken = await redisClient.get(`forgot:${email}`);
+  // To check the temporary memory database (Redis)
+  const storedToken = await redisClient.get(`forgot:${email}`);
 
-  if (!stroredToken || stroredToken !== token) {
+  // If storedToken is completely missing, it means the link was either already used or overwritten by a newer request
+  // If storedToken doesn't exactly match the token the user handed over, it means this is an old link and the user has since requested a newer one
+  if (!storedToken || storedToken !== token) {
     throw new ErrorHandler(400, "Token has expired");
   }
 
@@ -286,6 +301,7 @@ export const resetPassword = TryCatch(async (req, res, next) => {
 
   await sql`UPDATE users SET password = ${hashPassword} WHERE user_id = ${user.user_id}`;
 
+  // It makes the reset token one-time-use
   await redisClient.del(`forgot:${email}`);
 
   res.json({ message: "Password changed successfully" });

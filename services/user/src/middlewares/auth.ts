@@ -22,9 +22,11 @@ interface User {
   subscription: string | null;
 }
 
+
 export interface AuthenticatedRequest extends Request {
   user?: User;
 }
+
 
 export const isAuth = async (
   req: AuthenticatedRequest,

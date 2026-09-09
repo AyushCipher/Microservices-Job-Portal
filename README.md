@@ -29,11 +29,11 @@ The project was designed to demonstrate real-world engineering depth: authentica
 - Redis cache-aside layer for job listings, job details, company details, and user profiles, with explicit invalidation on writes.
 - Zod request validation at every mutating endpoint across all services.
 - A single API gateway in front of all five services, so the frontend (and any other client) talks to one origin.
-- Structured logging (pino), Prometheus-style `/metrics`, and `/health` checks on every service.
+- Structured logging (pino), full Prometheus metrics scraping (`/metrics`), `/health` checks on every service, and pre-provisioned Grafana monitoring dashboards.
 - Shared `@hireheaven/common` package (npm workspaces) for error handling, Redis clients, rate limiting, caching, validation, logging, metrics, and tokens — no copy-pasted utilities.
 - Automated tests (Vitest) and a GitHub Actions CI pipeline that typechecks, builds, and tests every workspace.
 - Cloudinary-based media storage and Gemini-powered AI responses.
-- One-command local startup via Docker Compose (Redis, Kafka/Zookeeper, the gateway, all five services, and the frontend).
+- One-command local startup via Docker Compose (Redis, Kafka/Zookeeper, Prometheus, Grafana, the gateway, all five services, and the frontend).
 
 ## Project Architecture
 
@@ -113,7 +113,7 @@ sequenceDiagram
 | Database | Neon PostgreSQL |
 | Cache / Rate Limiting | Redis (cache-aside reads + sliding-window rate limiting) |
 | Messaging | Kafka / KafkaJS |
-| Observability | pino (structured logs), prom-client (`/metrics`), `/health` checks |
+| Observability | pino (structured logs), Prometheus (metrics scraper on :9090), Grafana (dashboards on :3001), `/health` & `/metrics` |
 | Testing / CI | Vitest, GitHub Actions |
 | File Storage | Cloudinary |
 | Payments | Razorpay |
@@ -146,6 +146,9 @@ job-portal/
 │   ├── payment/                 # Razorpay payment microservice
 │   ├── user/                    # Profile, skills, and application microservice
 │   └── utils/                   # AI, uploads, and notification utilities
+├── monitoring/
+│   ├── prometheus/              # Prometheus configuration & scrape targets
+│   └── grafana/                 # Pre-provisioned datasources & microservice dashboards
 ├── .github/workflows/ci.yml     # Typecheck + build + test every workspace
 ├── Dockerfile.service           # Shared Dockerfile for every backend service + gateway
 ├── docker-compose.yml           # One-command local stack
@@ -158,7 +161,7 @@ job-portal/
 
 - Node.js 20+ recommended
 - npm 10+ recommended
-- Docker + Docker Compose (only needed if you want Redis/Kafka running locally via the provided `docker-compose.yml`)
+- Docker + Docker Compose (only needed if you want Redis/Kafka/Prometheus/Grafana running locally via the provided `docker-compose.yml`)
 - Neon PostgreSQL database (free tier works — the services use `@neondatabase/serverless`, which speaks Neon's HTTP protocol, so a generic local Postgres container will not work as a drop-in replacement)
 - Redis instance (local via Docker Compose, or a hosted instance such as Upstash/Redis Cloud)
 - Kafka broker (local via Docker Compose, or a Kafka-protocol-compatible hosted instance such as Redpanda Serverless/Confluent Cloud)
@@ -174,7 +177,12 @@ First, copy each `.env.example` to `.env` and fill in your own values (see step 
 docker compose up --build
 ```
 
-This starts Redis and Kafka/Zookeeper first, then builds and runs `auth` (5000), `utils` (5001), `user` (5002), `job` (5003), `payment` (5004), the `gateway` (8080), and the `frontend` (3000). The frontend and every service talk to each other through the gateway/Docker's internal network; only the gateway and frontend ports need to be reached from your browser. Each service still reads its own `.env` file for the values Docker Compose doesn't override (`DB_URL`, `JWT_SEC`, Cloudinary, Razorpay, and Gemini credentials) — see below.
+This starts Redis, Kafka/Zookeeper, Prometheus, and Grafana first, then builds and runs `auth` (5000), `utils` (5001), `user` (5002), `job` (5003), `payment` (5004), the `gateway` (8080), and the `frontend` (3000).
+
+- **Frontend**: [http://localhost:3000](http://localhost:3000)
+- **API Gateway**: [http://localhost:8080](http://localhost:8080)
+- **Prometheus UI**: [http://localhost:9090](http://localhost:9090)
+- **Grafana Dashboards**: [http://localhost:3001](http://localhost:3001) *(login: `admin` / `admin`)*
 
 ### Manual Setup
 
@@ -460,14 +468,21 @@ All endpoints below are reachable through the gateway at its own origin (default
 | POST | `/api/utils/career` | Generate career guidance using Gemini |
 | POST | `/api/utils/resume-analyser` | Analyze a resume for ATS compatibility |
 
-### Operational Endpoints
+### Operational & Observability Endpoints
 
 Every service (including the gateway) exposes:
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | GET | `/health` | Liveness check — service name + timestamp |
-| GET | `/metrics` | Prometheus-format metrics (request duration histogram + default Node process metrics) |
+| GET | `/metrics` | Prometheus-format metrics (request duration histogram, request counter, in-flight gauge, cache hit/miss, rate limit counters, process metrics) |
+
+### Monitoring & Dashboards
+
+| Service | Port / URL | Description |
+| --- | --- | --- |
+| **Prometheus** | `http://localhost:9090` | Scrapes `/metrics` from Gateway and all 5 microservices every 5s |
+| **Grafana** | `http://localhost:3001` | Pre-provisioned dashboards for service health, RPS, P95 latencies, error rates, RSS memory, and Redis cache performance (credentials: `admin` / `admin`) |
 
 ## Screenshots
 

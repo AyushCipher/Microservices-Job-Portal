@@ -65,6 +65,7 @@ export const isAuth = async (
       return;
     }
 
+    // Load the user from database when the user is considered authenticated. This is done to ensure that the user still exists in the database and to get the latest user information.
     const users = await sql`
     SELECT u.user_id, u.name, u.email, u.phone_number, u.role, u.bio, u.resume, u.resume_public_id, u.profile_pic, u.profile_pic_public_id, u.subscription,
     ARRAY_AGG(s.name) FILTER (WHERE s.name IS NOT NULL) as skills
@@ -88,6 +89,7 @@ export const isAuth = async (
     req.user = user;
 
     next();
+    
   } catch (error) {
     console.log(error);
     res.status(401).json({

@@ -10,6 +10,7 @@ export const connectKafka = async () => {
   try {
     const kafka = createKafkaClient("job-service");
 
+    // The Admin client is temporarily used to manage topics
     admin = kafka.admin();
     await admin.connect();
 
@@ -34,15 +35,17 @@ export const connectKafka = async () => {
 
     await producer.connect();
 
-    console.log("✅ connected to kafka producer");
+    console.log("✅ Connected to kafka producer");
+  
   } catch (error) {
     console.log("Failed to connect to kafka", error);
   }
 };
 
+
 export const publishToTopic = async (topic: string, message: any) => {
   if (!producer) {
-    console.log("kafka producer is not initialized");
+    console.log("❌ Kafka producer is not initialized");
     return;
   }
 
@@ -59,6 +62,7 @@ export const publishToTopic = async (topic: string, message: any) => {
     console.log("Failed to publish message to kafka", error);
   }
 };
+
 
 export const disconnectKafka = async () => {
   if (producer) {

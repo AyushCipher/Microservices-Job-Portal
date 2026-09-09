@@ -7,6 +7,7 @@ export interface RateLimiterOptions {
   prefix: string;
 }
 
+
 export const createRateLimiter = (redisClient: RedisClientType) => {
   return ({ windowSeconds, maxRequests, prefix }: RateLimiterOptions) => {
     return async (req: Request, res: Response, next: NextFunction) => {
@@ -20,6 +21,7 @@ export const createRateLimiter = (redisClient: RedisClientType) => {
           await redisClient.expire(key, windowSeconds);
         }
 
+        // Queries Redis for the remaining "Time to Live" (TTL) on the tracking key to determine how many seconds are left before the user's request limit resets
         const ttl = await redisClient.ttl(key);
 
         res.setHeader("X-RateLimit-Limit", maxRequests);

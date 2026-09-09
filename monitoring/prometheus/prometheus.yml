@@ -1,0 +1,39 @@
+﻿global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: "gateway"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["gateway:8080"]
+
+  - job_name: "auth-service"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["auth:5000"]
+
+  - job_name: "utils-service"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["utils:5001"]
+
+  - job_name: "user-service"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["user:5002"]
+
+  - job_name: "job-service"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["job:5003"]
+
+  - job_name: "payment-service"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["payment:5004"]
+
+  - job_name: "prometheus"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["localhost:9090"]

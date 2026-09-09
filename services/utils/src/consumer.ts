@@ -15,13 +15,16 @@ export const startSendMailConsumer = async () => {
     const topicName = "send-mail";
 
     await consumer.subscribe({ topic: topicName, fromBeginning: false });
+    // The fromBeginning: false option means that the consumer does not start from the earliest message in the topic. Instead, it processes new messages from its current position onward, 
+    // preventing the service from unnecessarily processing old email events when it starts
 
     console.log("✅ Mail service consumer started, listening for sending mail");
 
+    // The consumer continuously listens for new messages on the "send-mail" topic
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
         try {
-          const { to, subject, html } = JSON.parse(
+          const { to, subject, html } = JSON.parse(     // The message.value is a Buffer, so we convert it to a string and then parse it as JSON to extract the email details
             message.value?.toString() || "{}"
           );
 
@@ -43,12 +46,14 @@ export const startSendMailConsumer = async () => {
           });
 
           console.log(`Mail has been sent to ${to}`);
+          
         } catch (error) {
           console.log("Failed to send mail", error);
         }
       },
     });
+
   } catch (error) {
-    console.log("failed to start kafka consumer", error);
+    console.log("Failed to start kafka consumer", error);
   }
 };

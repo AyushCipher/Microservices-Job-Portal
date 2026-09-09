@@ -30,6 +30,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { ChangeEvent, useRef, useState } from "react";
 
+
 const Info: React.FC<AccontProps> = ({ user, isYourAccount }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const editRef = useRef<HTMLButtonElement | null>(null);
@@ -42,6 +43,7 @@ const Info: React.FC<AccontProps> = ({ user, isYourAccount }) => {
   const { updateProfilePic, updateResume, btnLoading, updateUser } =
     useAppData();
 
+  // Handle profile pic upload
   const handleClick = () => {
     inputRef.current?.click();
   };
@@ -70,6 +72,7 @@ const Info: React.FC<AccontProps> = ({ user, isYourAccount }) => {
     resumeRef.current?.click();
   };
 
+  // Acts as a critical guard check on incoming files and instantly blocks operation pathways and sounds a warning notification if the file extension type doesn't evaluate strictly to a "application/pdf" signature
   const changeResume = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {

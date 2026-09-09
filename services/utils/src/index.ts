@@ -30,7 +30,12 @@ const { metricsMiddleware, metricsHandler } = createMetrics(SERVICE_NAME);
 const app = express();
 app.use(cors());
 
+// This middleware is used to parse incoming requests with JSON payloads
 app.use(express.json({ limit: "50mb" }));
+
+// This middleware is used to parse incoming requests with urlencoded payloads& executes when a client sends data using the traditional HTML form formatting, accompanied by the HTTP header Content-Type: application/x-www-form-urlencoded.
+// The limit option specifies the maximum size of the request body that the server will accept. In this case, it is set to 50 megabytes. 
+// The extended option allows for rich objects and arrays to be encoded into the URL-encoded format, which can be useful for complex data structures.
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 app.use(createRequestLogger(logger));

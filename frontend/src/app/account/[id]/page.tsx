@@ -16,7 +16,8 @@ const UserAccount = () => {
   const { id } = useParams();
 
   async function fetchUser() {
-    const token = Cookies.get("token");
+    const token = Cookies.get("token");           
+    // Reaches into the browser's cookie jar to read your authenticated JWT Access Token string
     try {
       const { data } = await axios.get(`${user_service}/api/user/${id}`, {
         headers: {
@@ -25,8 +26,10 @@ const UserAccount = () => {
       });
 
       setUser(data);
+
     } catch (error) {
       console.log(error);
+      
     } finally {
       setLoading(false);
     }

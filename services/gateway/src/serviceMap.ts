@@ -6,7 +6,7 @@ export interface ServiceMapEnv {
   PAYMENT_SERVICE_URL?: string;
 }
 
-/** Maps each API path prefix to the backend service it should be proxied to, falling back to the default local port when no override is set. */
+// Maps each API path prefix to the backend service it should be proxied to, falling back to the default local port when no override is set. 
 export const resolveServiceMap = (
   env: ServiceMapEnv
 ): Record<string, string> => ({

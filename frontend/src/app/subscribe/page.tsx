@@ -24,10 +24,7 @@ const SubscriptionPage = () => {
   const handleSubscribe = async () => {
     const token = Cookies.get("token");
     setLoading(true);
-    const {
-      data: { order },
-    } = await axios.post(
-      `${payment_service}/api/payment/checkout`,
+    const {data: { order },} = await axios.post(`${payment_service}/api/payment/checkout`,
       {},
       {
         headers: {
@@ -37,8 +34,8 @@ const SubscriptionPage = () => {
     );
 
     const options = {
-      key: "rzp_test_RCEjl6ali322w6", // Replace with your Razorpay key_id
-      amount: order.id, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
+      key: "rzp_test_RCEjl6ali322w6",
+      amount: order.amount, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
       currency: "INR",
       name: "Hire Heaven",
       description: "Find job easily",
@@ -48,8 +45,7 @@ const SubscriptionPage = () => {
           response;
 
         try {
-          const { data } = await axios.post(
-            `${payment_service}/api/payment/verify`,
+          const { data } = await axios.post(`${payment_service}/api/payment/verify`,
             { razorpay_order_id, razorpay_payment_id, razorpay_signature },
             {
               headers: {
@@ -62,6 +58,7 @@ const SubscriptionPage = () => {
           setUser(data.updatedUser);
           router.push(`/payment/success/${razorpay_payment_id}`);
           setLoading(false);
+
         } catch (error: any) {
           setLoading(false);
           toast.error(getErrorMessage(error));
@@ -71,12 +68,15 @@ const SubscriptionPage = () => {
         color: "#F37254",
       },
     };
-    if (!razorpayLoaded) console.log("some thing went wrong with script");
+
+    if (!razorpayLoaded) console.log("Something went wrong with script");
+    
     const razorpay = new window.Razorpay(options);
     razorpay.open();
   };
 
   if (loading) return <Loading />;
+  
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-secondary/30">
       <Card className="max-w-md w-full p-8 text-center shadow-lg border-2">

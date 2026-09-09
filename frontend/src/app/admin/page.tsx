@@ -39,6 +39,7 @@ type Tab = "users" | "jobs" | "companies";
 
 const PAGE_SIZE = 10;
 
+
 const AdminPage = () => {
   const { isAuth, user, loading } = useAppData();
   const router = useRouter();
@@ -56,6 +57,7 @@ const AdminPage = () => {
 
   useEffect(() => {
     if (loading) return;
+
     if (!isAuth) {
       router.push("/login");
     } else if (user && user.role !== "admin") {
@@ -63,10 +65,13 @@ const AdminPage = () => {
     }
   }, [isAuth, loading, user, router]);
 
+
   useEffect(() => {
     setPage(1);
   }, [tab]);
 
+
+  // Fetch data based on the selected tab and current page
   useEffect(() => {
     if (!isAdmin) return;
 
@@ -74,29 +79,30 @@ const AdminPage = () => {
       setFetching(true);
       try {
         if (tab === "users") {
-          const { data } = await axios.get(
-            `${user_service}/api/user/admin/users?page=${page}&limit=${PAGE_SIZE}`,
+          const { data } = await axios.get(`${user_service}/api/user/admin/users?page=${page}&limit=${PAGE_SIZE}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
           setUsers(data.data);
           setTotalPages(data.pagination.totalPages);
+
         } else if (tab === "jobs") {
-          const { data } = await axios.get(
-            `${job_service}/api/job/admin/jobs?page=${page}&limit=${PAGE_SIZE}`,
+          const { data } = await axios.get(`${job_service}/api/job/admin/jobs?page=${page}&limit=${PAGE_SIZE}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
           setJobs(data.data);
           setTotalPages(data.pagination.totalPages);
+        
         } else {
-          const { data } = await axios.get(
-            `${job_service}/api/job/admin/companies?page=${page}&limit=${PAGE_SIZE}`,
+          const { data } = await axios.get(`${job_service}/api/job/admin/companies?page=${page}&limit=${PAGE_SIZE}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
           setCompanies(data.data);
           setTotalPages(data.pagination.totalPages);
         }
+
       } catch (error: any) {
         toast.error(error.response?.data?.message || "Failed to load data");
+      
       } finally {
         setFetching(false);
       }
@@ -105,25 +111,30 @@ const AdminPage = () => {
     fetchData();
   }, [tab, page, isAdmin, token]);
 
+
+  // Toggle job active status
   async function toggleJobActive(jobId: number, current: boolean) {
     try {
-      await axios.put(
-        `${job_service}/api/job/admin/jobs/${jobId}/active`,
+      await axios.put(`${job_service}/api/job/admin/jobs/${jobId}/active`,
         { is_active: !current },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
       toast.success(`Job ${!current ? "activated" : "deactivated"}`);
       setJobs((prev) =>
         prev.map((j) => (j.job_id === jobId ? { ...j, is_active: !current } : j))
       );
+
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to update job");
     }
   }
 
+
+
+  // Delete company and all its jobs 
   async function deleteCompany(companyId: number, name: string) {
-    if (
-      !window.confirm(
+    if (!window.confirm(
         `Delete company "${name}" and all its jobs? This cannot be undone.`
       )
     ) {
@@ -135,6 +146,7 @@ const AdminPage = () => {
       });
       toast.success("Company deleted successfully");
       setCompanies((prev) => prev.filter((c) => c.company_id !== companyId));
+    
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to delete company");
     }

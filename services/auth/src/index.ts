@@ -7,6 +7,7 @@ dotenv.config();
 
 async function initDb() {
   try {
+    // Create a PostgreSQL enum type called "user_role" with two possible values: 'jobseeker' and 'recruiter'. This is used to enforce that the role field in the users table can only take one of these two values.
     await sql`
     DO $$
     BEGIN
@@ -16,6 +17,7 @@ async function initDb() {
     END$$;
     `;
 
+    // Does the user_role enum already contain admin?
     // ALTER TYPE ... ADD VALUE cannot run inside a DO block/transaction, so
     // this check-then-add has to happen as two separate top-level statements.
     const [{ exists: adminRoleExists }] = await sql`

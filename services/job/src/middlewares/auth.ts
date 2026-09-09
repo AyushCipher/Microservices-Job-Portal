@@ -55,10 +55,7 @@ export const isAuth = async (
       return;
     }
 
-    if (
-      decodedPayload.jti &&
-      (await isAccessTokenBlacklisted(redisClient, decodedPayload.jti))
-    ) {
+    if (decodedPayload.jti && (await isAccessTokenBlacklisted(redisClient, decodedPayload.jti))) {
       res.status(401).json({
         message: "Token has been revoked. Please log in again",
       });
@@ -88,6 +85,7 @@ export const isAuth = async (
     req.user = user;
 
     next();
+    
   } catch (error) {
     console.log(error);
     res.status(401).json({

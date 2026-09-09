@@ -42,6 +42,7 @@ const AppliedJobs: React.FC<AppliedJobsProps> = ({ applications }) => {
         };
     }
   };
+  
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
       <Card className="shadow-lg border-2 overflow-hidden">

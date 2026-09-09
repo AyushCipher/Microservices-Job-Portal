@@ -32,6 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import CompanyLogo from "@/components/company-logo";
 
+
 const Company = () => {
   const { loading } = useAppData();
 
@@ -89,8 +90,7 @@ const Company = () => {
 
     try {
       setBtnLoading(true);
-      const { data } = await axios.post(
-        `${job_service}/api/job/company/new`,
+      const { data } = await axios.post(`${job_service}/api/job/company/new`,
         formData,
         {
           headers: {
@@ -101,19 +101,21 @@ const Company = () => {
       toast.success(data.message);
       clearData();
       fetchCompanies();
+
     } catch (error: any) {
       toast.error(getErrorMessage(error));
+
     } finally {
       setBtnLoading(false);
     }
   }
 
+
   async function deleteCompany(id: string) {
     if (confirm("Are you sure you want to delete this company")) {
       try {
         setBtnLoading(true);
-        const { data } = await axios.delete(
-          `${job_service}/api/job/company/${id}`,
+        const { data } = await axios.delete(`${job_service}/api/job/company/${id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -123,8 +125,10 @@ const Company = () => {
 
         toast.success(data.message);
         fetchCompanies();
+
       } catch (error: any) {
         toast.error(getErrorMessage(error));
+
       } finally {
         setBtnLoading(false);
       }
@@ -136,6 +140,7 @@ const Company = () => {
   }, []);
 
   if (loading) return <Loading />;
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <Card className="shadow-lg border-2 overflow-hidden">

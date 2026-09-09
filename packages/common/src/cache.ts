@@ -1,5 +1,6 @@
 import { RedisClientType } from "redis";
 
+// Default TTL(if not specified any TTL while setting cache entries) for cache entries in seconds
 const DEFAULT_TTL_SECONDS = 60;
 
 export const createCache = (redisClient: RedisClientType) => {
@@ -13,6 +14,7 @@ export const createCache = (redisClient: RedisClientType) => {
     }
   };
 
+
   const setCache = async (
     key: string,
     value: unknown,
@@ -25,6 +27,7 @@ export const createCache = (redisClient: RedisClientType) => {
     }
   };
 
+
   const invalidateKey = async (key: string): Promise<void> => {
     try {
       await redisClient.del(key);
@@ -32,6 +35,7 @@ export const createCache = (redisClient: RedisClientType) => {
       console.error("Cache invalidation error:", error);
     }
   };
+
 
   const invalidateByPrefix = async (prefix: string): Promise<void> => {
     try {
@@ -53,6 +57,7 @@ export const createCache = (redisClient: RedisClientType) => {
       if (keys.length > 0) {
         await redisClient.del(keys);
       }
+      
     } catch (error) {
       console.error("Cache invalidation error:", error);
     }

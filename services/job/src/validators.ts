@@ -6,6 +6,7 @@ const jobTypeEnum = z.enum([
   "Contract",
   "Internship",
 ]);
+
 const workLocationEnum = z.enum(["On-site", "Remote", "Hybrid"]);
 const applicationStatusEnum = z.enum(["Submitted", "Rejected", "Hired"]);
 const stageStatusEnum = z.enum([
@@ -15,11 +16,13 @@ const stageStatusEnum = z.enum([
   "rejected",
 ]);
 
+
 export const createCompanySchema = z.object({
   name: z.string().trim().min(1, "Company name is required"),
   description: z.string().trim().min(1, "Description is required"),
   website: z.string().trim().url("Invalid website URL"),
 });
+
 
 // Recruiter-defined hiring pipeline. At least one round is required — the
 // Job Detail page's Hiring Process stepper and the Tracker timeline are both
@@ -28,6 +31,7 @@ const jobRoundSchema = z.object({
   name: z.string().trim().min(1, "Round name is required"),
   description: z.string().trim().optional(),
 });
+
 
 const jobDetailsFields = {
   apply_by: z.coerce.date({ required_error: "Apply-by deadline is required" }),
@@ -53,6 +57,7 @@ const jobDetailsFields = {
   internship_season: z.string().trim().optional(),
 };
 
+
 export const createJobSchema = z.object({
   title: z.string().trim().min(1, "Title is required"),
   description: z.string().trim().min(1, "Description is required"),
@@ -71,6 +76,7 @@ export const createJobSchema = z.object({
   questions: z.array(z.string().trim().min(1)).optional().default([]),
   ...jobDetailsFields,
 });
+
 
 export const updateJobSchema = z.object({
   title: z.string().trim().min(1, "Title is required"),
@@ -91,9 +97,11 @@ export const updateJobSchema = z.object({
   ...jobDetailsFields,
 });
 
+
 export const updateApplicationStatusSchema = z.object({
   status: applicationStatusEnum,
 });
+
 
 export const updateApplicationStageSchema = z.object({
   applicationIds: z
@@ -104,6 +112,7 @@ export const updateApplicationStageSchema = z.object({
   note: z.string().trim().optional(),
 });
 
+
 export const jobListQuerySchema = z.object({
   title: z.string().trim().optional(),
   location: z.string().trim().optional(),
@@ -111,10 +120,12 @@ export const jobListQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
+
 export const applicationsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
+
 
 export const adminJobActiveSchema = z.object({
   is_active: z.boolean(),

@@ -59,6 +59,8 @@ import CompanyLogo from "@/components/company-logo";
 import ChipInput from "@/components/chip-input";
 import RoundsBuilder, { RoundInput } from "@/components/rounds-builder";
 
+
+
 const FieldError: React.FC<{ message?: string }> = ({ message }) =>
   message ? <p className="text-xs text-red-500 mt-1">{message}</p> : null;
 
@@ -77,7 +79,6 @@ const SUGGESTED_APPLICATION_QUESTIONS = [
 const CompanyPage = () => {
   const { id } = useParams();
   const token = Cookies.get("token");
-
   const { user } = useAppData();
   const [loading, setLoading] = useState(false);
   const [btnLoading, setBtnLoading] = useState(false);
@@ -123,6 +124,8 @@ const CompanyPage = () => {
   const [rounds, setRounds] = useState<RoundInput[]>([
     { name: "", description: "" },
   ]);
+
+
   const [tags, setTags] = useState<string[]>([]);
   const [skills, setSkills] = useState<string[]>([]);
   const [questions, setQuestions] = useState<string[]>([]);
@@ -251,8 +254,7 @@ const CompanyPage = () => {
     if (!jdFile) return;
     const formData = new FormData();
     formData.append("file", jdFile);
-    await axios.post(
-      `${job_service}/api/job/${jobId}/attachments`,
+    await axios.post(`${job_service}/api/job/${jobId}/attachments`,
       formData,
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -266,8 +268,7 @@ const CompanyPage = () => {
 
     setBtnLoading(true);
     try {
-      const { data } = await axios.post(
-        `${job_service}/api/job/new`,
+      const { data } = await axios.post(`${job_service}/api/job/new`,
         { ...buildJobPayload(), company_id: id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -286,6 +287,7 @@ const CompanyPage = () => {
     }
   };
 
+
   const deleteHandler = async (jobId: number) => {
     if (confirm("Are you sure you want to delete this job?")) {
       setBtnLoading(true);
@@ -298,8 +300,10 @@ const CompanyPage = () => {
 
         toast.success("Job deleted successfully");
         fetchCompany();
+
       } catch (error: any) {
         toast.error(getErrorMessage(error));
+
       } finally {
         setBtnLoading(false);
       }
@@ -333,18 +337,22 @@ const CompanyPage = () => {
       ]);
       setManageJob(full);
       setManageApplications(appsRes.data);
+
     } catch (error) {
       toast.error("Failed to load applicants");
+
     } finally {
       setManageLoading(false);
     }
   };
+
 
   const toggleSelectedApp = (id: number) => {
     setSelectedAppIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
+
 
   const submitStageUpdate = async () => {
     if (selectedAppIds.length === 0) {
@@ -358,8 +366,7 @@ const CompanyPage = () => {
 
     setStageSubmitting(true);
     try {
-      await axios.put(
-        `${job_service}/api/job/application/stage`,
+      await axios.put(`${job_service}/api/job/application/stage`,
         {
           applicationIds: selectedAppIds,
           round_id: Number(stageRoundId),
@@ -369,11 +376,15 @@ const CompanyPage = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success("Stage updated for the selected applicants");
+      
       if (manageJob) await openManageApplicants(manageJob);
+      
       setSelectedAppIds([]);
       setStageNote("");
+
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to update stage");
+    
     } finally {
       setStageSubmitting(false);
     }
@@ -381,15 +392,14 @@ const CompanyPage = () => {
 
   const [loadingJobDetail, setLoadingJobDetail] = useState(false);
 
+  // Hydrating Form States for Job Updates
   const handleOpenUpdateModal = async (job: Job) => {
     setLoadingJobDetail(true);
     try {
       // company.jobs only has the bare `jobs` row (no rounds/tags/details) —
       // fetch the full detail so the edit form doesn't wipe an existing
       // pipeline down to a single blank round on save.
-      const { data: full } = await axios.get<Job>(
-        `${job_service}/api/job/${job.job_id}`
-      );
+      const { data: full } = await axios.get<Job>(`${job_service}/api/job/${job.job_id}`);
 
       setSelectedJob(full);
       settitle(full.title);
@@ -421,6 +431,7 @@ const CompanyPage = () => {
       setExpectedOffers(
         full.expected_offers != null ? String(full.expected_offers) : ""
       );
+
       setCtcMin(full.ctc_min != null ? String(full.ctc_min) : "");
       setCtcMax(full.ctc_max != null ? String(full.ctc_max) : "");
       setStipend(full.stipend != null ? String(full.stipend) : "");
@@ -433,8 +444,10 @@ const CompanyPage = () => {
       setJdFile(null);
       setErrors({});
       setIsUpdatedModalOpen(true);
+
     } catch {
       toast.error("Failed to load job details");
+
     } finally {
       setLoadingJobDetail(false);
     }
@@ -457,8 +470,7 @@ const CompanyPage = () => {
     try {
       const updateData = { ...buildJobPayload(), is_active };
 
-      await axios.put(
-        `${job_service}/api/job/${selectedJob.job_id}`,
+      await axios.put(`${job_service}/api/job/${selectedJob.job_id}`,
         updateData,
         {
           headers: {
@@ -472,16 +484,20 @@ const CompanyPage = () => {
       toast.success("Job updated successfully");
       fetchCompany();
       handleCloseUpdateModal();
+
     } catch (error: any) {
       toast.error(getErrorMessage(error));
+
     } finally {
       setBtnLoading(false);
     }
   };
 
+
   const handleJdFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
     if (file.type !== "application/pdf") {
       toast.error("Please upload a PDF file");
       return;

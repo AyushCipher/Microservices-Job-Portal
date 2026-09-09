@@ -8,8 +8,10 @@ import { cache } from "../utils/redisClient.js";
 const { getCache, setCache, invalidateKey: invalidateCache } = cache;
 
 const userProfileCacheKey = (userId: string | number) =>
-  `cache:user:profile:${userId}`;
+  `cache:user:profile:${userId}`;         // This prevents different parts of the application from inventing different key formats
 
+
+// This function is intended for an admin to retrieve users
 export const adminListUsers = TryCatch(async (req, res) => {
   const { page, limit } = res.locals.validated.query as {
     page: number;
@@ -20,6 +22,7 @@ export const adminListUsers = TryCatch(async (req, res) => {
     SELECT COUNT(*)::int AS total FROM users
   `) as { total: number }[];
 
+  // This retrieves only the current requested page 
   const users = await sql`
     SELECT user_id, name, email, phone_number, role, created_at, subscription
     FROM users
@@ -38,6 +41,8 @@ export const adminListUsers = TryCatch(async (req, res) => {
   });
 });
 
+
+// Gets the currently authenticated user's profile
 export const myProfile = TryCatch(
   async (req: AuthenticatedRequest, res, next) => {
     const user = req.user;
@@ -46,6 +51,8 @@ export const myProfile = TryCatch(
   }
 );
 
+
+// Retrieves another user's profile
 export const getUserProfile = TryCatch(async (req, res, next) => {
   const { userId } = req.params;
 
@@ -79,6 +86,8 @@ export const getUserProfile = TryCatch(async (req, res, next) => {
   res.json(user);
 });
 
+
+// Updates the currently authenticated user's profile
 export const updateUserProfile = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const user = req.user;
@@ -108,6 +117,8 @@ export const updateUserProfile = TryCatch(
   }
 );
 
+
+// Updates the currently authenticated user's profile picture
 export const updateProfilePic = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const user = req.user;
@@ -122,8 +133,10 @@ export const updateProfilePic = TryCatch(
       throw new ErrorHandler(400, "No image file provided");
     }
 
+    // Gets the existing profile picture's public ID
     const oldPublicId = user.profile_pic_public_id;
 
+    // Generates a buffer from the uploaded file to send to the upload service
     const fileBuffer = getBuffer(file);
 
     if (!fileBuffer || !fileBuffer.content) {
@@ -151,6 +164,8 @@ export const updateProfilePic = TryCatch(
   }
 );
 
+
+// Updates the currently authenticated user's resume
 export const updateResume = TryCatch(async (req: AuthenticatedRequest, res) => {
   const user = req.user;
 
@@ -192,6 +207,8 @@ export const updateResume = TryCatch(async (req: AuthenticatedRequest, res) => {
   });
 });
 
+
+// Adds a skill to the currently authenticated user's profile
 export const addSkillToUser = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const userId = req.user?.user_id;
@@ -218,6 +235,7 @@ export const addSkillToUser = TryCatch(
 
       const skillId = skill.skill_id;
 
+      // Inserts a new row into the user_skills table to associate the skill with the user(User 42 → React). If the user already has this skill, the ON CONFLICT clause prevents a duplicate entry.
       const insertionResult =
         await sql`INSERT INTO user_skills (user_id, skill_id) VALUES (${userId}, ${skillId}) ON CONFLICT (user_id, skill_id) DO NOTHING RETURNING user_id`;
 
@@ -226,6 +244,7 @@ export const addSkillToUser = TryCatch(
       }
 
       await sql`COMMIT`;
+
     } catch (error) {
       await sql`ROLLBACK`;
       throw error;
@@ -245,6 +264,8 @@ export const addSkillToUser = TryCatch(
   }
 );
 
+
+// Deletes a skill(skill relationship) from the currently authenticated user's profile
 export const deleteSkillFromUser = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const user = req.user;
@@ -259,6 +280,7 @@ export const deleteSkillFromUser = TryCatch(
       throw new ErrorHandler(400, "Please provide a skill name");
     }
 
+    // Deletes the skill relationship from the user_skills table
     const result = await sql`DELETE FROM user_skills WHERE user_id = ${
       user.user_id
     } AND skill_id = (SELECT skill_id FROM skills WHERE name = ${skillName.trim()}) RETURNING user_id;`;
@@ -275,6 +297,8 @@ export const deleteSkillFromUser = TryCatch(
   }
 );
 
+
+// Applies for a job as the currently authenticated user
 export const applyForJob = TryCatch(async (req: AuthenticatedRequest, res) => {
   const user = req.user;
 
@@ -317,17 +341,19 @@ export const applyForJob = TryCatch(async (req: AuthenticatedRequest, res) => {
     throw new ErrorHandler(400, "Job is not active");
   }
 
-  // Every recruiter-defined question is mandatory. Answers are matched by
-  // question_id against this job's own questions so a client can't smuggle in
+  // Every recruiter-defined question is mandatory. Answers are matched by question_id against this job's own questions so a client can't smuggle in
   // answers belonging to a different job.
   const jobQuestions = (await sql`
     SELECT question_id FROM job_questions WHERE job_id = ${job_id}
   `) as { question_id: number }[];
 
+  // Creates a map of question_id to answer_text for quick lookup. This allows us to easily check if all required questions have been answered.
+  // Example: { 1: "I have 2 years of experience", 2: "B.Tech" }
   const answerByQuestionId = new Map(
     (answers ?? []).map((a) => [Number(a.question_id), a.answer_text.trim()])
   );
 
+  // Checks if any required question is missing an answer. If so, it throws an error indicating that all questions must be answered before applying.
   const missing = jobQuestions.filter(
     (q) => !answerByQuestionId.get(q.question_id)
   );
@@ -341,12 +367,15 @@ export const applyForJob = TryCatch(async (req: AuthenticatedRequest, res) => {
     );
   }
 
+  // Checks if the user has an active subscription
   const now = Date.now();
 
+  // If the user has a subscription, it converts the subscription date to milliseconds since Unix epoch
   const subTime = req.user?.subscription
     ? new Date(req.user.subscription).getTime()
     : 0;
 
+  // If the user has an active subscription, the subscribed flag will be set to true
   const isSubscribed = subTime > now;
 
   let newApplication;
@@ -364,6 +393,7 @@ export const applyForJob = TryCatch(async (req: AuthenticatedRequest, res) => {
   // Persist the answers alongside the application. If this fails the
   // application row would be left without the answers the recruiter requires,
   // so roll it back rather than leaving a half-recorded application behind.
+  // Only insert answers if the job actually has questions
   if (jobQuestions.length > 0) {
     try {
       await sql.transaction(
@@ -372,6 +402,7 @@ export const applyForJob = TryCatch(async (req: AuthenticatedRequest, res) => {
             sql`INSERT INTO application_answers (application_id, question_id, answer_text) VALUES (${newApplication.application_id}, ${q.question_id}, ${answerByQuestionId.get(q.question_id)})`
         ) as any
       );
+
     } catch (error) {
       console.error("Failed to save application answers, rolling back", error);
       await sql`DELETE FROM applications WHERE application_id = ${newApplication.application_id}`;
@@ -386,6 +417,8 @@ export const applyForJob = TryCatch(async (req: AuthenticatedRequest, res) => {
   // hiring-rounds feature shipped have no job_rounds rows yet — the apply
   // still succeeds, the Tracker just has nothing to show until the
   // recruiter defines a pipeline for that job.
+
+  // This section initializes the application's first hiring round. It finds the first hiring round configured for this job 
   const [firstRound] =
     await sql`SELECT round_id, name FROM job_rounds WHERE job_id = ${job_id} AND round_order = 1`;
 
@@ -402,6 +435,8 @@ export const applyForJob = TryCatch(async (req: AuthenticatedRequest, res) => {
   });
 });
 
+
+// Retrieves all applications for the currently authenticated user
 export const getAllaplications = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const { page, limit } = res.locals.validated.query as {
@@ -409,10 +444,12 @@ export const getAllaplications = TryCatch(
       limit: number;
     };
 
+    // Counts only applications belonging to the current user
     const [{ total }] = (await sql`
       SELECT COUNT(*)::int AS total FROM applications WHERE applicant_id = ${req.user?.user_id}
     `) as { total: number }[];
 
+    // Retrieves only the current requested page of applications for the current user. 
     const applications = await sql`
     SELECT a.*, j.title AS job_title, j.salary AS job_salary, j.location AS job_location,
       j.job_type AS job_type, j.is_active AS job_is_active,

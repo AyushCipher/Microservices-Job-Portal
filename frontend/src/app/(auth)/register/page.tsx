@@ -55,8 +55,7 @@ const RegisterPage = () => {
       }
     }
     try {
-      const { data } = await axios.post(
-        `${auth_service}/api/auth/register`,
+      const { data } = await axios.post(`${auth_service}/api/auth/register`,
         formData
       );
 
@@ -67,6 +66,7 @@ const RegisterPage = () => {
         secure: false,
         path: "/",
       });
+
       Cookies.set("refreshToken", data.refreshToken, {
         expires: 7,
         secure: false,
@@ -74,6 +74,7 @@ const RegisterPage = () => {
       });
       setUser(data.user);
       setIsAuth(true);
+
     } catch (error: any) {
       toast.error(getErrorMessage(error));
       setIsAuth(false);

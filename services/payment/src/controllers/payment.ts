@@ -13,13 +13,14 @@ export const checkOut = TryCatch(async (req: AuthenticatedRequest, res) => {
 
   const [user] = await sql`SELECT * FROM users WHERE user_id = ${user_id}`;
 
+  // Checks whether the user currently has a subscription
   const subTime = user?.subscription
-    ? new Date(user.subscription).getTime()
+    ? new Date(user.subscription).getTime()   // converts it into a JavaScript Date and then that date into milliseconds since Unix epoch
     : 0;
 
-  const now = Date.now();
+  const now = Date.now();                     // Gets the current timestamp in milliseconds
 
-  const isSubscribed = subTime > now;
+  const isSubscribed = subTime > now;         // If the subscription time is in the future, the user is still subscribed
 
   if (isSubscribed) {
     throw new ErrorHandler(400, "You already have a subscription");
@@ -33,6 +34,7 @@ export const checkOut = TryCatch(async (req: AuthenticatedRequest, res) => {
     },
   };
 
+  // Razorpay creates an order and returns something like order_id, amount, currency, status, created_at ,etc. which is then sent to the frontend to complete the payment
   const order = await instance.orders.create(options);
 
   res.status(201).json({
@@ -40,6 +42,8 @@ export const checkOut = TryCatch(async (req: AuthenticatedRequest, res) => {
   });
 });
 
+
+// This runs after the payment attempt as frontend sends the payment details to the backend for verification
 export const paymentVerification = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const user = req.user;
@@ -47,6 +51,7 @@ export const paymentVerification = TryCatch(
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
       req.body;
 
+    // Creates a string by concatenating the order ID and payment ID with a "|" separator. This string is used to generate a hash for verifying the authenticity of the payment.
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 
     const expectedSignature = crypto
@@ -54,8 +59,9 @@ export const paymentVerification = TryCatch(
       .update(body)
       .digest("hex");
 
+      
     const isAuthentic = expectedSignature === razorpay_signature;
-
+    // If the signature is authentic, update the user's subscription status
     if (isAuthentic) {
       const now = new Date();
 

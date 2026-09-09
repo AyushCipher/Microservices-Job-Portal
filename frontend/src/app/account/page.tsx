@@ -20,6 +20,7 @@ const AccountPage = () => {
   }, [isAuth, router, loading]);
 
   if (loading) return <Loading />;
+  
   return (
     <>
       {user && (

@@ -27,18 +27,21 @@ export const payment_service =
 const ACCESS_TOKEN_COOKIE = "token";
 const REFRESH_TOKEN_COOKIE = "refreshToken";
 
+
 const setAuthCookies = (accessToken: string, refreshToken: string) => {
   Cookies.set(ACCESS_TOKEN_COOKIE, accessToken, {
     expires: 1 / 96, // ~15 minutes, matches the access token's own lifetime
     secure: false,
     path: "/",
   });
+
   Cookies.set(REFRESH_TOKEN_COOKIE, refreshToken, {
     expires: 7,
     secure: false,
     path: "/",
   });
 };
+
 
 const clearAuthCookies = () => {
   Cookies.remove(ACCESS_TOKEN_COOKIE, { path: "/" });
@@ -48,6 +51,9 @@ const clearAuthCookies = () => {
 // Transparently refreshes an expired access token using the refresh token
 // and retries the original request once. Registered globally so every
 // axios call in the app (not just ones made through this context) benefits.
+
+//  If multiple backend calls fail with a 401 Unauthorized error at the exact same moment, 
+// this pointer blocks the client from launching multiple duplicate token refresh requests
 let refreshInFlight: Promise<string | null> | null = null;
 
 const COLD_START_MAX_RETRIES = 3;
@@ -61,6 +67,9 @@ const COLD_START_RETRY_DELAY_MS = 6000;
 // has had a chance to warm the service up.
 const RETRYABLE_POST_PATHS = ["/api/auth/login", "/api/auth/register"];
 
+
+//  Evaluates whether a failed request is safe to retry. It returns true if the request is a GET method (which only reads data) or a whitelisted POST path (Login/Register).
+//  This approach ensures destructive transactions (like double-charging a payment) are never accidentally retried
 function isRetryableColdStart(originalRequest: any): boolean {
   const method = originalRequest?.method?.toLowerCase();
   if (method === "get") return true;
@@ -70,6 +79,7 @@ function isRetryableColdStart(originalRequest: any): boolean {
   }
   return false;
 }
+
 
 axios.interceptors.response.use(
   (response) => response,
@@ -83,8 +93,7 @@ axios.interceptors.response.use(
     // even though the service comes up fine moments later. Retry with a
     // pause instead of surfacing a hard error for what's really just
     // "still waking up."
-    if (
-      (status === 502 || status === 503) &&
+    if ((status === 502 || status === 503) &&
       originalRequest &&
       isRetryableColdStart(originalRequest) &&
       (originalRequest._coldStartRetries || 0) < COLD_START_MAX_RETRIES
@@ -97,8 +106,7 @@ axios.interceptors.response.use(
       return axios(originalRequest);
     }
 
-    if (
-      status !== 401 ||
+    if (status !== 401 ||
       originalRequest?._retry ||
       originalRequest?.url?.includes("/api/auth/refresh")
     ) {
@@ -115,8 +123,7 @@ axios.interceptors.response.use(
 
     try {
       if (!refreshInFlight) {
-        refreshInFlight = axios
-          .post(`${auth_service}/api/auth/refresh`, { refreshToken })
+        refreshInFlight = axios.post(`${auth_service}/api/auth/refresh`, { refreshToken })
           .then(({ data }) => {
             setAuthCookies(data.accessToken, data.refreshToken);
             return data.accessToken as string;

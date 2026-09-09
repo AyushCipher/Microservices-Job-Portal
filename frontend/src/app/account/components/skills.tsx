@@ -12,6 +12,7 @@ import { AccontProps } from "@/type";
 import { Award, Plus, Sparkle, X } from "lucide-react";
 import React, { useState } from "react";
 
+
 const Skills: React.FC<AccontProps> = ({ user, isYourAccount }) => {
   const { addSkill, btnLoading, removeSkill } = useAppData();
   const [skill, setSkill] = useState("");
@@ -35,6 +36,7 @@ const Skills: React.FC<AccontProps> = ({ user, isYourAccount }) => {
       removeSkill(skillToRemove);
     }
   };
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
       <Card className="shadow-lg border-2 overflow-hidden">

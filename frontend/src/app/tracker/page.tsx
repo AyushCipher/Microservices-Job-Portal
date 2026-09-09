@@ -26,6 +26,7 @@ import {
   Table as TableIcon,
 } from "lucide-react";
 
+
 const Tracker = () => {
   const { isAuth, user, applications, loading } = useAppData();
   const router = useRouter();
@@ -44,13 +45,15 @@ const Tracker = () => {
 
   const filtered = useMemo(() => {
     return (applications || []).filter((a) => {
-      if (
-        companySearch &&
+      if (companySearch &&
         !a.company_name?.toLowerCase().includes(companySearch.toLowerCase())
       )
         return false;
+
       if (jobStatus !== "all" && a.status !== jobStatus) return false;
+      
       if (jobType !== "all" && a.job_type !== jobType) return false;
+      
       return true;
     });
   }, [applications, companySearch, jobStatus, jobType]);
@@ -76,6 +79,7 @@ const Tracker = () => {
     async function loadTimeline() {
       setTimelineLoading(true);
       try {
+        // Fetch the job details and application history in parallel
         const [{ data: job }, { data: historyRes }] = await Promise.all([
           axios.get<Job>(`${job_service}/api/job/${selected!.job_id}`),
           axios.get<{ data: ApplicationStageHistoryEntry[] }>(
@@ -100,9 +104,11 @@ const Tracker = () => {
         });
 
         setSteps(merged);
+        
       } catch (error) {
         console.log(error);
         setSteps([]);
+
       } finally {
         setTimelineLoading(false);
       }

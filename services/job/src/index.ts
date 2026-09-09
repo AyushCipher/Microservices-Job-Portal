@@ -9,6 +9,7 @@ connectKafka();
 
 async function initDB() {
   try {
+    // Create PostgreSQL enum types:
     await sql`
     DO $$
     BEGIN
@@ -27,6 +28,8 @@ async function initDB() {
     END$$;
     `;
 
+
+    // This stores recruiter-created companies
     await sql`
     CREATE TABLE IF NOT EXISTS companies (
     company_id SERIAL PRIMARY KEY,
@@ -40,6 +43,8 @@ async function initDB() {
     )
     `;
 
+
+    // This stores the jobs posted by recruiters
     await sql`
     CREATE TABLE IF NOT EXISTS jobs(
     job_id SERIAL PRIMARY KEY,
@@ -58,6 +63,8 @@ async function initDB() {
     )
     `;
 
+
+    // This stores the applications submitted by jobseekers and connects a job seeker with a job
     await sql`
     CREATE TABLE IF NOT EXISTS applications(
     application_id SERIAL PRIMARY KEY,
@@ -74,6 +81,7 @@ async function initDB() {
 
     // --- Job Detail / Tracker feature tables (additive, all nullable/new) ---
 
+    // This table stores additional details about a job, which are not part of the main jobs table. It is a one-to-one relationship with the jobs table, where each job can have one set of details.
     await sql`
     CREATE TABLE IF NOT EXISTS job_details (
     job_id INTEGER PRIMARY KEY REFERENCES jobs(job_id) ON DELETE CASCADE,
@@ -103,6 +111,8 @@ async function initDB() {
     )
     `;
 
+
+    // This table stores the hiring rounds for a job 
     await sql`
     CREATE TABLE IF NOT EXISTS job_rounds (
     round_id SERIAL PRIMARY KEY,
@@ -114,6 +124,8 @@ async function initDB() {
     )
     `;
 
+
+    // This table stores the tags for each hiring round of a job 
     await sql`
     CREATE TABLE IF NOT EXISTS job_tags (
     tag_id SERIAL PRIMARY KEY,
@@ -122,6 +134,8 @@ async function initDB() {
     )
     `;
 
+
+    // This table stores the skills required for a job 
     await sql`
     CREATE TABLE IF NOT EXISTS job_skills (
     job_skill_id SERIAL PRIMARY KEY,
@@ -130,6 +144,8 @@ async function initDB() {
     )
     `;
 
+
+    // This table stores the questions for each job, which can be used to assess the applicants
     await sql`
     CREATE TABLE IF NOT EXISTS job_questions (
     question_id SERIAL PRIMARY KEY,
@@ -140,6 +156,8 @@ async function initDB() {
     )
     `;
 
+
+    // This table stores the answers provided by applicants for the questions of a job
     await sql`
     CREATE TABLE IF NOT EXISTS job_attachments (
     attachment_id SERIAL PRIMARY KEY,
@@ -151,6 +169,8 @@ async function initDB() {
     )
     `;
 
+
+    // This table stores the history of application stages for each application, which can be used to track the progress of an application through the hiring process
     await sql`
     CREATE TABLE IF NOT EXISTS application_stage_history (
     history_id SERIAL PRIMARY KEY,
@@ -164,6 +184,8 @@ async function initDB() {
     )
     `;
 
+
+    // This column stores the current round of an application, which can be used to determine the next steps for the applicant
     await sql`
     ALTER TABLE applications ADD COLUMN IF NOT EXISTS current_round_id INTEGER REFERENCES job_rounds(round_id)
     `;
@@ -171,13 +193,18 @@ async function initDB() {
     // Applicant-supplied label for the attached resume (e.g. "Backend
     // resume v3"). Nullable: applications made before this feature have no
     // name, and the UI falls back to the file name in that case.
+
+    // This column stores the name of the resume file uploaded by the applicant, which can be used to display the file name in the application details
     await sql`
     ALTER TABLE applications ADD COLUMN IF NOT EXISTS resume_name VARCHAR(255)
     `;
 
+
     // Stores a jobseeker's answers to the recruiter-defined questions on a
     // job. Every application created after this table exists has one row
     // per job_questions row for its job.
+
+    // This table stores the answers provided by applicants for the questions of a job
     await sql`
     CREATE TABLE IF NOT EXISTS application_answers (
     answer_id SERIAL PRIMARY KEY,
@@ -189,6 +216,8 @@ async function initDB() {
     )
     `;
 
+
+    // Index to speed up queries that fetch all answers for a given application
     await sql`
     CREATE INDEX IF NOT EXISTS idx_application_answers_application
     ON application_answers (application_id)
@@ -197,6 +226,7 @@ async function initDB() {
     console.log(
       "Job service database tables checked and created successfully."
     );
+    
   } catch (error) {
     console.log("Error while creating tables", error);
     process.exit(1);

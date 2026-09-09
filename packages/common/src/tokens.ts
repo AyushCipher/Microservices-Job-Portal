@@ -29,6 +29,7 @@ export const signAccessToken = (subject: TokenSubject, secret: string) => {
   return { token, jti };
 };
 
+
 export const signRefreshToken = (subject: TokenSubject, secret: string) => {
   const jti = randomUUID();
 
@@ -40,6 +41,7 @@ export const signRefreshToken = (subject: TokenSubject, secret: string) => {
   return { token, jti };
 };
 
+
 export const verifyToken = <T extends JwtPayload = JwtPayload>(
   token: string,
   secret: string
@@ -47,6 +49,7 @@ export const verifyToken = <T extends JwtPayload = JwtPayload>(
 
 const refreshKey = (jti: string) => `refresh:${jti}`;
 const blacklistKey = (jti: string) => `blacklist:${jti}`;
+
 
 /** Stores a refresh token's jti so it can be looked up / revoked on logout. */
 export const storeRefreshToken = async (
@@ -59,10 +62,12 @@ export const storeRefreshToken = async (
   });
 };
 
+
 export const isRefreshTokenValid = async (
   redisClient: RedisClientType,
   jti: string
 ) => (await redisClient.get(refreshKey(jti))) !== null;
+
 
 export const revokeRefreshToken = async (
   redisClient: RedisClientType,
@@ -70,6 +75,7 @@ export const revokeRefreshToken = async (
 ) => {
   await redisClient.del(refreshKey(jti));
 };
+
 
 /** Blacklists an access token's jti for the remainder of its natural lifetime (logout). */
 export const blacklistAccessToken = async (

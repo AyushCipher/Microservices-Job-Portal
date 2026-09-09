@@ -5,10 +5,7 @@ export interface CreateRedisClientOptions {
   label: string;
 }
 
-export const createRedisClient = ({
-  url,
-  label,
-}: CreateRedisClientOptions): RedisClientType => {
+export const createRedisClient = ({url,label,}: CreateRedisClientOptions): RedisClientType => {
   const client = createClient({ url }) as RedisClientType;
 
   client.on("error", (err) => console.error(`[${label}] Redis Client Error`, err));

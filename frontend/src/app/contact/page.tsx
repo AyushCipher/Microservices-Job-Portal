@@ -24,6 +24,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
+
 const contactInfo = [
   {
     icon: Mail,
